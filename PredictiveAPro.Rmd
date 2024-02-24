@@ -109,7 +109,7 @@ There are 3 categories of room_type
 
 
 
-# 2.Data Cleaning And Discriptive anlytics
+# 2.Data Cleaning And Descriptive anlytics
 
 # Filtering only the columns that we will use for this analysis
 ```{r}
@@ -150,7 +150,7 @@ head(airbnb_data2)
 sum(is.na(airbnb_data2))
 ```
 
-# 3. Data Visualisation and Discriptive Analysis 
+# 3. Data Visualisation and Descriptive Analysis 
 
 Exploring the data by analyzing its statistics and visualizing the values of features and correlations between different features. Explaining the process and the results
 
