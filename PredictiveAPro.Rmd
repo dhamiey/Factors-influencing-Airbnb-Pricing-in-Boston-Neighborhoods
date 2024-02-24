@@ -1,0 +1,517 @@
+---
+title: "What factors influence the price of Airbnb listings in different neighborhoods of Boston, and how can a machine learning model, such as Random Forest, be used to accurately predict these prices?"
+subtitle: "Leveraging Machine Learning to Understand and Forecast Airbnb Pricing Trends across Boston Neighborhoods"
+author: 'Group2'
+date: "Predictive Analytics  4/13/2023"
+output:
+  html_document:
+    toc: yes
+    toc_depth: '1'
+    df_print: paged
+  pdf_document:
+    toc: yes
+    toc_depth: 1
+    number_sections: yes
+  word_document:
+    toc: yes
+    toc_depth: '1'
+urlcolor: blue
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.align  = "center")
+```
+
+Business Question
+
+What are the key differentiators that drive Airbnb pricing in various Boston neighborhoods, and can a Random Forest model be employed to identify opportunities for hosts to improve their listings and capitalize on market trends?
+
+
+# Importing necessary Libraries 
+```{r, results='hide', message=FALSE}
+#importing necessery libraries for future analysis of the dataset
+library(tidyverse)
+library(ggplot2)
+library(scales)
+library(corrplot)
+library(psych)
+library(dplyr)
+```
+
+# Importing the data to R studio using the read_csv function.
+
+```{r}
+airbnb_data <- read.csv("../PP/listings.csv",header = T)
+
+```
+## ... 
+
+# 1. Data Exploration
+
+```{r}
+#examing head of airbnb_data csv file 
+#head(airbnb_data)
+```
+
+
+
+# Get the dimensions of the dataset
+```{r}
+#checking amount of rows and columns in given dataset to understand the size we are working with
+dim(airbnb_data)
+
+```
+The data set has 69305 observations and 16 variables
+ 
+
+##### Check if tibble
+```{r}
+is_tibble(airbnb_data)
+```
+# Force to data frame
+```{r}
+airbnb_data <- as.data.frame(airbnb_data)
+```
+
+# Explore the structure of the dataframe
+```{r}
+glimpse(airbnb_data)
+```
+
+After loading the dataset in and from the head of AB_2021_NYC dataset we can see a number of things. These 23 columns provide a very rich amount of information for deep data exploration we can do on this dataset. We do not  see some missing values Meaning this data is clean and read for analysis.
+# Verify the categorical nature of the perceived categorical variables of interest
+```{r}
+# examining the unique values of neighbourhood_group as this column will appear very handy for later analysis
+length(unique(airbnb_data$neighbourhood))
+
+unique(airbnb_data$neighbourhood_group)
+```
+There are 5 different categories of neighbourhood_group
+
+
+```{r}
+# Examining the unique values of neighbourhood
+length(unique(airbnb_data$neighbourhood))
+
+unique(airbnb_data$neighbourhood)
+```
+There are 31 different categories of neighbourhood
+
+
+```{r}
+# Examining the categorical nature of room_type
+unique(airbnb_data$room_type)
+
+length(unique(airbnb_data$room_type))
+```
+There are 3 categories of room_type
+
+
+
+
+# 2.Data Cleaning And Discriptive anlytics
+
+# Filtering only the columns that we will use for this analysis
+```{r}
+airbnb_data%>%
+  select(room_type,bedrooms,price,cleaning_fee,bathrooms,neighbourhood,minimum_nights)->airbnb_data1
+
+airbnb_clean <- airbnb_data1 %>%
+  mutate(
+    price = as.integer(gsub("[$,]", "", price)),
+    cleaning_fee = as.integer(gsub("[$,]", "", cleaning_fee))
+  )
+
+#cheacking the head of our new dataset 
+head(airbnb_clean)
+```
+
+
+```{r}
+na.omit(airbnb_clean)->airbnb_data1
+
+```
+
+We remove the missing values because they are very few and they cannot affect our research
+
+
+```{r select only numerical columns}
+airbnb_data1%>%
+  select(bedrooms,price,cleaning_fee,bathrooms,minimum_nights)->airbnb_data2
+
+
+head(airbnb_data2)
+
+
+```
+
+```{r}
+ ##Check for missing values
+sum(is.na(airbnb_data2))
+```
+
+# 3. Data Visualisation and Discriptive Analysis 
+
+Exploring the data by analyzing its statistics and visualizing the values of features and correlations between different features. Explaining the process and the results
+
+# Neighbourhood groups by number of room postings
+```{r}
+airbnb_data %>% 
+  ggplot(aes(x = neighbourhood)) +
+  geom_bar(fill = "maroon", color = "yellow") +
+  labs(
+    title = "Neighbour hood by number of postings",
+    x = "Neighbourhood "
+  ) +
+  theme_classic()+
+   coord_flip()
+```
+Allston has the highest number of room postings, followed by Back Bay with Staten Harvard Square the least postings. This could mean that there are many houses in Allston or the condition of the houses are better than the others but this is not something we can infer by looking at the chart.
+
+```{r}
+
+airbnb_data %>% 
+  ggplot(aes(x = neighbourhood)) +
+  geom_bar(aes(fill = room_type), position = "dodge", width = 0.8) +
+  labs(
+    title = "Neighbourhood groups according by room type",
+    x = "Neighbourhood Group",
+    y = "Count"
+  ) +
+  theme_bw()+
+ coord_flip()
+```
+An Entire home/apt is more common in Allston than shared Room which could infer that people possibly prefer to rent entire home/apt compared to other room types. However, this is not sufficient to answer this question. 
+Shared room is generally low at all the neighbourhood . 
+
+
+
+Descriptive Analytics 
+
+```{r}
+summary(airbnb_data1)
+
+```
+
+
+```{r}
+describe(airbnb_data1)
+
+```
+
+ Correlation Analysis.
+ 
+```{r}
+airbnb_data1.mat<- as.matrix(airbnb_data2)
+```
+ 
+# checking for multicollinearity  
+```{r}
+
+airbnb_data1.mat<- as.matrix(airbnb_data2)
+airbnb_data1.cor <- cor(airbnb_data1.mat)
+
+corrplot(airbnb_data1.cor, order = "hclust", method = "number")
+
+
+```
+# Plot to show the relationship of the variables in the data set.
+ 
+```{r}
+airbnb_data1 %>% 
+  ggplot(aes(x = minimum_nights, y = price)) +
+  geom_point(aes(color = neighbourhood, shape = room_type)) +
+  scale_x_log10() +
+  theme_bw()
+```
+ 
+Normality Test for the outcome variable 
+
+```{r}
+hist(airbnb_data1$price)
+```
+
+
+# Model Selection
+ 
+```{r}
+fit.model<-lm(price~.,data = airbnb_data1)
+summary(fit.model)
+```
+
+#OLS Assumption Test
+Residual plot
+```{r}
+plot(fit.model, which = 2)
+```
+
+#Inspecting the model for heteroskedasticity
+```{r}
+plot(fit.model,which=1)
+```
+ 
+```{r}
+library(lmtest)
+bptest(fit.model,data=airbnb_data1)
+```
+ The first residual plot clearly shows that the error variance is not even, suggesting that heteroskedasticity may be present. The BP test is also significant, providing evidence of the presence of heteroskedasticity
+
+
+#Given that the residuals of the OLS model are heteroskedastic, fit a Weighted Least Squares WLS model
+```{r}
+abs.res<-abs(residuals(fit.model))
+fitted.ols<-fitted(fit.model)
+
+```
+
+#fit a linear model to predict abs.res with fitted.ols as the predictor
+```{r}
+lm.abs.res<-lm(abs.res~fitted.ols)
+ #plotting fitted.ols (horizontal axis) against abs.res (vertical axis) and layer the lm.abs.res regression line on top
+plot(fitted.ols, abs.res) 
+abline(lm.abs.res, col="red") 
+```
+
+```{r}
+wts <- 1/fitted(lm.abs.res)^2
+wts[1:10]
+```
+#Fit a WLS model 
+```{r}
+fit.wls<-lm(price~.,weight=wts,data = airbnb_data1)
+summary(fit.wls)
+```
+```{r}
+predictions_lm <- predict(lm(formula = price ~ ., data = airbnb_data2, weights = wts))
+RMSE_lm <- sqrt(mean((predictions_lm - airbnb_data2[, 1])^2))
+print(RMSE_lm)
+
+
+```
+
+
+Regression Tree
+
+```{r}
+library(tree)
+library(ISLR)
+
+airbnb.tree <- tree(log(price) ~ .,data=airbnb_data1, mindev = 0.003)
+plot(airbnb.tree)
+text(airbnb.tree, pretty = 0)
+title("Airbnb Price Regression Tree")
+```
+ Finding The optimal Tree Size 
+```{r}
+airbnb.cv <- cv.tree(airbnb.tree)
+plot(airbnb.cv$size, airbnb.cv$dev, type = 'b')
+```
+
+```{r}
+cbind("Tree Size"= airbnb.cv$size,
+ "MSE" = airbnb.cv$dev)
+```
+
+optimizing Tree size 
+```{r}
+min.mse.tree <- min(airbnb.cv$dev) # Lowest MSE
+min.rmse.tree <- sqrt(min.mse.tree) # Lowest RMSE
+best.ind <- which(airbnb.cv$dev == min.mse.tree) # Tree with best CV
+deviance
+best.size <- airbnb.cv$size[best.ind] # Tree size with best CV deviance
+cbind("Smallest MSE" = min.mse.tree,
+ "Smallest RMSE" = min.rmse.tree,
+ "Which Tree" = best.ind,
+ "Best Tree Size" = best.size)
+```
+prune the tree to optimal size
+```{r}
+airbnb.prune <- prune.tree(airbnb.tree, best = best.size)
+plot(airbnb.prune) # Plot the tree
+text(airbnb.prune, pretty = 0) # With labels
+title(paste("Airbnb price Regression Tree, Best Size = ",
+ best.size))
+```
+
+Random Forest Regression Tree
+
+```{r}
+library(randomForest)
+airbnb.rf <-
+ randomForest(price ~.,
+ airbnb_data1,
+ mtry = 2,
+ importance = T)
+```
+
+
+```{r}
+plot(airbnb.rf)
+```
+
+```{r}
+varImpPlot(airbnb.rf, type = 1)
+```
+```{r}
+importance(airbnb.rf, type = 1)
+```
+```{r}
+mse.rf <- mean(airbnb.rf$mse)
+rmse.rf <- sqrt(mse.rf)
+cbind("RF MSE " = mse.rf,
+ "RF RMSE" = rmse.rf)
+```
+Bootstrap Aggregation Regression Tree
+
+```{r}
+airbnb.bag <- randomForest(price~.,
+ airbnb_data1,
+ mtry = 6,
+ importance = T)
+plot(airbnb.bag)
+```
+Render the variable importance plot for the bagging tree
+```{r}
+varImpPlot(airbnb.bag, type = 1) 
+```
+
+
+```{r}
+importance(airbnb.bag, type = 1)
+```
+
+Now display the first 10 values of **airbnb.bag$mse**
+
+```{r}
+airbnb.bag$mse[1:10]
+```
+```{r}
+mse.bag <- mean(airbnb.bag$mse)
+rmse.bag <- sqrt(mse.bag)
+cat("\n")
+cbind("Bag MSE " = mse.bag,
+ "Bag RMSE" = rmse.bag)
+```
+
+
+Summary of Regression Tree Results
+```{r}
+cbind("Root MSE Tree" = min.rmse.tree,
+ "Bagging" = rmse.bag,
+ "Random Forest" = rmse.rf,
+ "WLS"=RMSE_lm)
+
+```
+ 
+ Explanation
+ 
+ It is abundantly clear that the Random Forest outperforms all other trees
+for this data, in terms of predictive accuracy. Bagging and Random Forest
+trees also outperform regular trees by far in terms of predictive accuracy
+
+
+Actual prediction  for an individual  who is looking to get a house in Black Bay,the house should have 2 bedrooms ,2 bathrooms with a cleaning fee of $30 and a private room.
+
+
+Cross - Validation for Random forest
+
+```{r}
+library(caret)
+set.seed(1)
+tr <- 0.7
+train <- sample(nrow(airbnb_data2), tr * nrow(airbnb_data2))
+
+
+airbnb.rf.train <- airbnb_data2[train, ]
+
+
+airbnb.rf.test<- airbnb_data2[-train, ]
+
+fitControl1 <- trainControl(method = "repeatedcv",
+                            number = 10,
+                            search = "random",
+                            repeats = 1,
+                            savePredictions = T)
+
+modelfitrf <- train(price~.,data=airbnb.rf.train,
+                    method="rf",
+                    trControl=fitControl1,
+                    tunelength=10,
+                    ntree=100)
+
+modelfitrf$bestTune
+plot(varImp(modelfitrf, scale = F), main="Var Imp: RF 10-FCV")
+
+```
+ performance metrics for Random forest regression models
+```{r}
+# Generate predictions for the test dataset
+predictions <- predict(modelfitrf, newdata = airbnb.rf.test)
+
+# Calculate the Root Mean Squared Error (RMSE)
+RMSE <- sqrt(mean((predictions - airbnb.rf.test[, 1])^2))
+print(RMSE)
+
+```
+Cross - Validation For WLS
+```{r}
+library(nlme)
+weights_column <- ncol(airbnb.rf.train)
+wls_model <- lm(price ~ ., data = airbnb.rf.train[, -weights_column], weights = airbnb.rf.train[, weights_column])
+
+
+predictions_wls <- predict(wls_model, newdata = airbnb.rf.test[, -weights_column])
+
+
+RMSE_wls <- sqrt(mean((predictions_wls - airbnb.rf.test[, 1])^2))
+print(RMSE_wls)
+
+
+```
+
+Cross validation for Bootstrap Aggregation Regression Tree
+
+```{r}
+library(ipred)
+bagging_model <- bagging(price ~ ., data = airbnb.rf.train, nbagg = 100)
+predictions_bagging <- predict(bagging_model, newdata = airbnb.rf.test)
+
+RMSE_bagging <- sqrt(mean((predictions_bagging - airbnb.rf.test[, 1])^2))
+print(RMSE_bagging)
+
+
+```
+Cross - validation For Regression Tree
+
+```{r}
+library(rpart)
+regression_tree_model <- rpart(price ~ ., data = airbnb.rf.train)
+
+predictions_regression_tree <- predict(regression_tree_model, newdata = airbnb.rf.test)
+
+RMSE_regression_tree <- sqrt(mean((predictions_regression_tree - airbnb.rf.test[, 1])^2))
+print(RMSE_regression_tree)
+
+```
+Predictive accuracy of the models 
+
+```{r}
+cbind("regression tree RMSE" = RMSE_regression_tree,
+ "Bagging  RMSE" = RMSE_bagging,
+ "Random Forest RMSE" =RMSE,
+  "WLS RMSE" =RMSE_wls)
+```
+
+
+
+```{r}
+
+airbnb_New <- data.frame(bedrooms=2,minimum_nights=5,room_type="private room",cleaning_fee=30,bathrooms=2,neighbourhood="Back Bay")
+airbnb_New
+```
+
+
+```{r}
+predict(airbnb.rf,airbnb_New)
+```
+
